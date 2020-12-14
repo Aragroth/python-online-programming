@@ -1,0 +1,1 @@
+pylint --load-plugins=pylint_mongoengine --ignored-classes=MongoEngine --extension-pkg-whitelist=pydantic backend

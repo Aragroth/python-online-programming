@@ -1,0 +1,18 @@
+FROM python:3.8-alpine
+
+# Большинство утилит необходимо для компляции Pillow
+RUN pip3 install --upgrade pip setuptools wheel && \
+    apk add --update gcc g++ make zlib  libxml2-dev libxslt-dev libffi-dev gcc musl-dev jpeg-dev \
+    zlib-dev freetype-dev lcms2-dev openjpeg-dev tiff-dev tk-dev tcl-dev libgcc openssl-dev \
+    curl --no-cache
+
+WORKDIR /backend
+COPY ./requirements-admin.txt /backend/requirements-admin.txt
+RUN pip3 install -r requirements-admin.txt --no-cache-dir
+
+ENV IS_ADMIN_PANEL=1
+EXPOSE 5000
+
+COPY . /backend
+
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "admin:app", "--log-level", "debug"]

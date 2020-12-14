@@ -1,0 +1,124 @@
+version: '3'
+
+services:
+    frontend:
+        build:
+            context: ./frontend
+            dockerfile: Dockerfile
+        container_name: react-frontend
+        volumes:
+            - ./frontend/nginx.conf:/etc/nginx/nginx.conf
+            - nginx-logs:/var/log/nginx/
+        labels:
+            - traefik.enable=true
+            - traefik.http.routers.nginx.rule=HostRegexp(`{host:.+}`)
+            - traefik.http.routers.nginx.priority=1
+            - traefik.http.routers.nginx.tls.certresolver=letsEncrypt
+            - traefik.http.routers.nginx.entrypoints=secureweb
+        networks:
+            - dind
+
+
+    mongo:
+        image: mongo:latest
+        restart: always
+        environment:
+            MONGO_INITDB_ROOT_USERNAME: <Your username>
+            MONGO_INITDB_ROOT_PASSWORD: <Your password>
+        volumes:
+            - mongodb-data:/data/db
+            - mongodb-config:/data/configdb
+        ports:
+            - 27017:27017
+        networks:
+            - dind
+
+
+    admin:
+        build:
+            context: backend/
+            dockerfile: Dockerfile.admin
+        labels:
+            - traefik.enable=true
+            - traefik.http.routers.adminstration.rule=PathPrefix(`/admin`)
+            - traefik.http.routers.adminstration.tls.certresolver=letsEncrypt
+            - traefik.http.routers.adminstration.entrypoints=secureweb
+            - traefik.http.routers.adminstration.service=admin
+            - traefik.http.services.admin.loadbalancer.server.port=5000
+        depends_on:
+            - mongo
+        environment:
+            MONGODB_HOST: mongo
+            MONGODB_USERNAME: <Your username>
+            MONGODB_PASSWORD: <Your password>
+        networks:
+            - dind
+
+
+    docker-root:
+        image: docker:dind
+        privileged: true
+        environment: 
+            DOCKER_TLS_CERTDIR: ''
+        command: -H 0.0.0.0:2375
+        networks:
+            - dind         
+
+
+    backend:
+        build:
+            context: ./backend
+            dockerfile: Dockerfile.api
+        environment:
+            DOCKER_HOST: "tcp://docker-root:2375"
+            MONGODB_DATABASE_URI: "mongodb://<username>:<password>@mongo:27017/?authSource=admin"
+        volumes:
+            - users-data:/backend/data/input_files
+            - backend-logs:/backend/log
+            - ./backend/core/.env:/backend/core/.env
+        networks:
+            - dind
+        depends_on:
+            - docker-root
+            - mongo
+        labels:
+            - traefik.enable=true
+            - traefik.http.routers.http-catchall.rule=PathPrefix(`/api`)
+            - traefik.http.routers.http-catchall.entrypoints=secureweb
+            - traefik.http.routers.http-catchall.tls.certresolver=letsEncrypt
+            - traefik.http.routers.http-catchall.middlewares=clear_prefix
+            - traefik.http.middlewares.clear_prefix.stripprefix.prefixes=/api,/dashboard
+            - traefik.http.middlewares.clear_prefix.stripprefix.forceSlash=true
+            - traefik.http.services.backend.loadbalancer.server.port=8000
+
+            - traefik.http.routers.images-giver.rule=PathPrefix(`/images`)
+            - traefik.http.routers.images-giver.entrypoints=secureweb
+            - traefik.http.routers.images-giver.tls.certresolver=letsEncrypt
+
+
+    reverse-proxy:
+        image: traefik:v2.3
+        ports:
+            - 80:80
+            - 443:443
+            # traefik dashboard
+            - 8080:8080
+        volumes:
+            - /etc/localtime:/etc/localtime:ro
+            - ./traefik/traefik.yml:/traefik.yml:ro
+            - ./traefik/dashboard.yml:/traefik/dashboard.yml:ro
+            - ./traefik/acme.json:/traefik/acme.json
+            - /var/run/docker.sock:/var/run/docker.sock:ro
+        networks:
+            - dind
+
+networks:
+    dind:
+        
+volumes:
+    mongodb-data:
+    mongodb-config:
+    users-data:
+    backend-logs:
+    nginx-logs:
+

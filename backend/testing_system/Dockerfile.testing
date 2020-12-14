@@ -1,0 +1,5 @@
+FROM python:3.8-alpine
+
+WORKDIR /testing
+
+CMD ["/bin/sh", "-c", "python3 main.py < input > stdout 2>&1"]

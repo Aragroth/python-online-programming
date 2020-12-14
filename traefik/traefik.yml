@@ -1,0 +1,36 @@
+api:
+  dashboard: true
+  debug: true
+
+entryPoints:
+  web:
+    address: ":80"
+    http:
+      redirections:
+        entryPoint:
+          to: secureweb
+          scheme: https
+          permanent: false
+
+  secureweb:
+    address: ":443"
+
+  dashboard:
+    address: ":8080"
+
+certificatesResolvers:
+  letsEncrypt:
+    acme:
+      email: example@example.com
+      storage: /traefik/acme.json
+      caServer: "https://acme-staging-v02.api.letsencrypt.org/directory"
+      httpChallenge:
+        entryPoint: secureweb
+
+providers:
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    exposedByDefault: false
+  file:
+    filename: /traefik/dashboard.yml
+    watch: true

@@ -1,0 +1,17 @@
+http:
+  routers:
+    dashboard:
+      rule: HostRegexp(`{host:.+}`)
+      entrypoints:
+        - dashboard
+      tls:
+        certresolver: letsEncrypt
+      service: api@internal
+      middlewares:
+        - auth
+
+  middlewares:
+    auth:
+      basicAuth:
+        users:
+          - <Your username>:<Your htpasswd generated password>

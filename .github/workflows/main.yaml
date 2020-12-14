@@ -1,0 +1,54 @@
+name: All tests and linter
+
+# Run this workflow every time a new commit pushed to your repository
+on: push
+
+jobs:
+  CodeLinting:
+    name: Check code quality with pylint
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checks out a copy of your repository on the ubuntu-latest machine
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Download python dependeces
+        run: |
+          cd backend
+          sudo apt-get update
+          sudo apt-get install python3.8 -y  # source code uses := from python3.8
+          sudo python3.8 -m pip install --upgrade pip  # for installing super-new packages like orjson
+          sudo python3.8 -m pip install setuptools wheel  # for installing source-packages
+          sudo python3.8 -m pip install -r requirements-api.txt --no-cache-dir \
+              --ignore-installed PyYAML  # ignore, cause PyYAML has probblems with double-installation
+
+      - name: Run PyLinter
+        run: |
+          sudo python3.8 -m pip install pylint mongoengine pylint_mongoengine pydantic
+
+          sudo python3.8 -m pylint  --load-plugins=pylint_mongoengine \
+                --ignored-classes=MongoEngine \
+                --extension-pkg-whitelist=pydantic backend
+
+  codeTesting:
+    name: Unit testing server with Mock-Database
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Download python dependeces
+        run: |
+          cd backend
+          sudo apt-get update
+          sudo apt-get install python3.8 -y  # source code uses := from python3.8
+          sudo python3.8 -m pip install --upgrade pip  # for installing super-new packages like orjson
+          sudo python3.8 -m pip install setuptools wheel  # for installing source-packages
+          sudo python3.8 -m pip install -r requirements-api.txt --no-cache-dir \
+              --ignore-installed PyYAML  # ignore, cause PyYAML has probblems with double-installation
+      - name: Run tests moc-database
+        run: |
+          cd backend
+          export DEBUG=1
+          sh run/tests.sh

@@ -1,0 +1,26 @@
+FROM python:3.8-alpine
+
+WORKDIR /backend
+
+# Утилиты для компилирования библиотек
+RUN apk add gcc g++ make zlib && pip3 install --upgrade pip setuptools wheel
+
+ARG DOCKER_CLI_VERSION="18.06.3-ce"
+ENV DOWNLOAD_URL="https://download.docker.com/linux/static/stable/x86_64/docker-$DOCKER_CLI_VERSION.tgz"
+
+# Устанавливаем в образ docker-client, для использования d-in-d
+RUN apk --update add curl \
+    && mkdir -p /tmp/download \
+    && curl -L $DOWNLOAD_URL | tar -xz -C /tmp/download \
+    && mv /tmp/download/docker/docker /usr/local/bin/ \
+    && rm -rf /tmp/download \
+    && apk del curl \
+    && rm -rf /var/cache/apk/*
+
+COPY ./requirements-api.txt /backend/requirements-api.txt
+RUN pip3 install -r requirements-api.txt --no-cache-dir
+
+EXPOSE 8000
+COPY . /backend
+
+CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000"]
